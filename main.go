@@ -11,9 +11,6 @@ func main() {
 	tempDir, err := ioutil.TempDir("", "islandImage")
 	fmt.Println("save dir ", tempDir)
 	reg, err := registry.New(registry.Config{
-		Username:  "",
-		Password:  "",
-		Proxy:     "",
 		ImageName: "58.87.123.88:5000/tensshinet/busybox",
 		SaveDir:   tempDir,
 		UseHttp:   true,

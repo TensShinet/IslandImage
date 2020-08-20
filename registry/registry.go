@@ -44,17 +44,18 @@ type Config struct {
 }
 
 type registry struct {
-	client   *http.Client
-	host     string
+	client *http.Client
+
 	auth     authentication
 	username string
 	password string
+	saveDir  string
 
-	scheme    string
-	repoName  string
-	imageName string
-	imageTag  string
-	saveDir   string
+	Scheme    string
+	RepoName  string
+	ImageName string
+	ImageTag  string
+	Host      string
 }
 
 type authentication struct {
@@ -84,25 +85,25 @@ func New(conf Config) (*registry, error) {
 	temp := strings.Split(conf.ImageName, "/")
 	reg := &registry{
 		saveDir:  conf.SaveDir,
-		host:     defaultRegistryHost,
-		scheme:   defaultScheme,
-		repoName: defaultRepoName,
-		imageTag: defaultImageTag,
+		Host:     defaultRegistryHost,
+		Scheme:   defaultScheme,
+		RepoName: defaultRepoName,
+		ImageTag: defaultImageTag,
 	}
 	if conf.UseHttp {
-		reg.scheme = "http"
+		reg.Scheme = "http"
 	}
-	reg.imageName = temp[len(temp)-1]
-	if strings.Contains(reg.imageName, ":") {
-		imageParts := strings.Split(reg.imageName, ":")
-		reg.imageName = imageParts[0]
-		reg.imageTag = imageParts[1]
+	reg.ImageName = temp[len(temp)-1]
+	if strings.Contains(reg.ImageName, ":") {
+		imageParts := strings.Split(reg.ImageName, ":")
+		reg.ImageName = imageParts[0]
+		reg.ImageTag = imageParts[1]
 	}
 	if len(temp) == 2 {
-		reg.repoName = temp[0]
+		reg.RepoName = temp[0]
 	} else if len(temp) > 2 {
-		reg.host = temp[0]
-		reg.repoName = strings.Join(temp[1:len(temp)-1], "/")
+		reg.Host = temp[0]
+		reg.RepoName = strings.Join(temp[1:len(temp)-1], "/")
 	}
 
 	reg.client = &http.Client{
@@ -198,7 +199,7 @@ func (reg *registry) GetToken(u string) error {
 func (reg *registry) GetManifests() (string, error) {
 	headers := make(map[string]string)
 	headers["Accept"] = ManifestListAccept
-	manifestListURL := fmt.Sprintf(ManifestFormat, reg.scheme, reg.host, reg.repoName, reg.imageName, reg.imageTag)
+	manifestListURL := fmt.Sprintf(ManifestFormat, reg.Scheme, reg.Host, reg.RepoName, reg.ImageName, reg.ImageTag)
 	res, err := reg.doGet(manifestListURL, headers)
 	if err != nil {
 		return "", err
@@ -222,13 +223,13 @@ func (reg *registry) GetManifests() (string, error) {
 	return "", InvalidArchitecture
 }
 
-// 如果为空那么默认是 imageTag
+// 如果为空那么默认是 ImageTag
 func (reg *registry) GetManifest(manifestDigest string) (*Manifest, error) {
 	headers := make(map[string]string)
 	if manifestDigest == "" {
-		manifestDigest = reg.imageTag
+		manifestDigest = reg.ImageTag
 	}
-	manifestURL := fmt.Sprintf(ManifestFormat, reg.scheme, reg.host, reg.repoName, reg.imageName, manifestDigest)
+	manifestURL := fmt.Sprintf(ManifestFormat, reg.Scheme, reg.Host, reg.RepoName, reg.ImageName, manifestDigest)
 	headers["Accept"] = ManifestAccept
 	res, err := reg.doGet(manifestURL, headers)
 	if err != nil {
@@ -257,7 +258,7 @@ func (reg *registry) GetConfig(manifest *Manifest) error {
 	}
 	defer out.Close()
 	headers := make(map[string]string)
-	configURL := fmt.Sprintf(blobsFormat, reg.scheme, reg.host, reg.repoName, reg.imageName, manifest.Config.Digest)
+	configURL := fmt.Sprintf(blobsFormat, reg.Scheme, reg.Host, reg.RepoName, reg.ImageName, manifest.Config.Digest)
 	headers["Accept"] = manifest.Config.MediaType
 
 	res, err := reg.doGet(configURL, headers)
@@ -285,7 +286,7 @@ func (reg *registry) GetLayers(layers []ManifestLayer) error {
 		defer out.Close()
 
 		headers := make(map[string]string)
-		layerURL := fmt.Sprintf(blobsFormat, reg.scheme, reg.host, reg.repoName, reg.imageName, layer.Digest)
+		layerURL := fmt.Sprintf(blobsFormat, reg.Scheme, reg.Host, reg.RepoName, reg.ImageName, layer.Digest)
 		headers["Accept"] = layer.MediaType
 		res, err := reg.doGet(layerURL, headers)
 		if err != nil {
