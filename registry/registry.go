@@ -22,7 +22,7 @@ const (
 	defaultRegistryHost = "index.docker.io"
 	defaultImageTag     = "latest"
 	defaultRepoName     = "library"
-	defaultScheme       = "http"
+	defaultScheme       = "https"
 
 	ManifestListAccept = "application/vnd.docker.distribution.manifest.list.v2+json"
 	ManifestAccept     = "application/vnd.docker.distribution.manifest.v2+json"
@@ -167,6 +167,7 @@ func (reg *registry) doGet(url string, headers map[string]string) (*http.Respons
 }
 
 func (reg *registry) GetToken(u string) error {
+	fmt.Println("GetToken ", u)
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return err
@@ -187,6 +188,7 @@ func (reg *registry) GetToken(u string) error {
 	if err != nil {
 		return err
 	}
+
 	var a = new(authentication)
 	err = json.Unmarshal(body, &a)
 	if err != nil {
@@ -230,6 +232,7 @@ func (reg *registry) GetManifest(manifestDigest string) (*Manifest, error) {
 		manifestDigest = reg.ImageTag
 	}
 	manifestURL := fmt.Sprintf(ManifestFormat, reg.Scheme, reg.Host, reg.RepoName, reg.ImageName, manifestDigest)
+	fmt.Println("GetManifest ", manifestURL)
 	headers["Accept"] = ManifestAccept
 	res, err := reg.doGet(manifestURL, headers)
 	if err != nil {
@@ -250,11 +253,11 @@ func (reg *registry) GetManifest(manifestDigest string) (*Manifest, error) {
 	return m, nil
 }
 
-func (reg *registry) GetConfig(manifest *Manifest) error {
+func (reg *registry) GetConfig(manifest *Manifest) (string, error) {
 	configFilePath := filepath.Join(reg.saveDir, fmt.Sprintf("%s.json", strings.TrimPrefix(manifest.Config.Digest, "sha256:")))
 	out, err := os.Create(configFilePath)
 	if err != nil {
-		return fmt.Errorf("create config file failed")
+		return "", fmt.Errorf("create config file failed")
 	}
 	defer out.Close()
 	headers := make(map[string]string)
@@ -263,16 +266,16 @@ func (reg *registry) GetConfig(manifest *Manifest) error {
 
 	res, err := reg.doGet(configURL, headers)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer res.Body.Close()
 
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
-		return fmt.Errorf("writing config file failed")
+		return "", fmt.Errorf("writing config file failed")
 	}
 
-	return nil
+	return configFilePath, nil
 }
 
 func (reg *registry) GetLayers(layers []ManifestLayer) error {
@@ -302,7 +305,6 @@ func (reg *registry) GetLayers(layers []ManifestLayer) error {
 			return fmt.Errorf("write tar file failed")
 		}
 		defer res.Body.Close()
-
 	}
 	return nil
 }
