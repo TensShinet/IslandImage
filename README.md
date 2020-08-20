@@ -1,0 +1,1 @@
+![](https://docs.docker.com/registry/spec/images/v2-registry-auth.png)
